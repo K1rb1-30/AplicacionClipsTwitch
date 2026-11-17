@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clips de Twitch</title>
+<style>
+  :root { --bg:#0f0f14; --panel:#1a1a22; --line:#2c2c38; --text:#ececf1; --dim:#9a9aaa;
+          --accent:#9147ff; --ok:#2ecc71; --bad:#e5484d; --warn:#f5a623; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui,Segoe UI,sans-serif; }
+  header { padding:16px 24px; border-bottom:1px solid var(--line); display:flex; gap:16px; align-items:center; flex-wrap:wrap; }
+  h1 { font-size:18px; margin:0; margin-right:auto; }
+  h2 { font-size:15px; margin:0 0 12px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+  main { padding:24px; display:grid; gap:24px; max-width:1300px; margin:auto; }
+  input, button, select { font:inherit; border-radius:8px; border:1px solid var(--line); padding:8px 12px; background:var(--panel); color:var(--text); }
+  button { cursor:pointer; }
+  button:hover { border-color:var(--accent); }
+  button.primary { background:var(--accent); border-color:var(--accent); font-weight:600; }
+  button.ok { background:var(--ok); border-color:var(--ok); color:#06210f; font-weight:600; }
+  button.bad:hover { border-color:var(--bad); color:var(--bad); }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .sessions { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(380px,1fr)); }
+  .sess-head { display:flex; gap:10px; align-items:center; }
+  .sess-head strong { font-size:17px; }
+  .badge { font-size:12px; padding:2px 8px; border-radius:99px; background:var(--line); }
+  .badge.grabando { background:var(--bad); color:#fff; }
+  .badge.esperando, .badge.conectando { background:var(--warn); color:#221600; }
+  .title { color:var(--dim); margin:4px 0 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .stats { display:flex; gap:18px; font-size:13px; color:var(--dim); margin:8px 0; flex-wrap:wrap; }
+  .stats b { color:var(--text); font-size:15px; }
+  svg.spark { width:100%; height:60px; display:block; background:#12121a; border-radius:8px; }
+  .events { font-size:13px; color:var(--dim); max-height:110px; overflow:auto; margin-top:10px; }
+  .events span { color:var(--text); opacity:.6; margin-right:6px; }
+  .row { display:flex; gap:8px; margin-top:12px; }
+  .settings { display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); }
+  .settings label { display:grid; gap:4px; font-size:13px; color:var(--dim); }
+  .settings .wide { grid-column:1/-1; }
+  details summary { cursor:pointer; color:var(--dim); }
+  .tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .tabs button.on { border-color:var(--accent); color:#fff; background:#2a1d4a; }
+  .clips { display:grid; gap:16px; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); }
+  .clip video { width:100%; aspect-ratio:9/16; background:#000; border-radius:8px; }
+  .clip .meta { font-size:13px; color:var(--dim); margin:8px 0; }
+  .clip .meta b { color:var(--text); display:block; }
+  .clip a { color:var(--accent); font-size:13px; }
+  .empty { color:var(--dim); padding:20px 0; }
+  #msg { color:var(--bad); font-size:13px; }
+  [hidden] { display:none !important; }
+  .row { flex-wrap:wrap; }
+  .clip .score { color:var(--warn); font-weight:600; }
+  .clip .note { font-size:12px; color:var(--warn); margin-top:6px; }
+  #editor { position:fixed; inset:0; background:#000c; display:flex; align-items:center; justify-content:center; padding:20px; z-index:10; }
+  #editor .box { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; width:min(1000px,100%); max-height:100%; overflow:auto; }
+  #editor h3 { margin:0 0 12px; }
+  #editor h4 { margin:16px 0 8px; font-size:13px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+  #editor video { width:100%; max-height:42vh; background:#000; border-radius:8px; }
+  #editor .field { display:grid; gap:4px; font-size:13px; color:var(--dim); }
+  #editor .trim { display:flex; gap:10px; align-items:end; flex-wrap:wrap; }
+  #editor .trim input { width:90px; }
+  #ed-dur { color:var(--text); padding-bottom:9px; }
+  #ed-lines { max-height:30vh; overflow:auto; display:grid; gap:6px; }
+  .subrow { display:flex; gap:8px; }
+  .subrow button { width:64px; padding:6px; font-size:13px; flex:none; }
+  .subrow input { flex:1; min-width:0; }
+  .subrow.out { opacity:.35; }
+  .clip .ctitle { color:var(--text); font-weight:600; display:block; margin-bottom:2px; }
+  #modal { position:fixed; inset:0; background:#000c; display:flex; align-items:center; justify-content:center; padding:20px; z-index:10; }
+  #modal .box { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; width:min(900px,100%); max-height:100%; overflow:auto; }
+  #modal h3 { margin:0 0 6px; }
+  #modal p { margin:0 0 12px; color:var(--dim); font-size:14px; }
+  #stage { position:relative; user-select:none; touch-action:none; cursor:crosshair; line-height:0; background:#000; border-radius:8px; overflow:hidden; min-height:120px; }
+  #stage img { width:100%; display:block; pointer-events:none; }
+  #rect { position:absolute; border:3px solid var(--accent); background:#9147ff33; pointer-events:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎬 Clips de Twitch</h1>
+  <span id="msg"></span>
+  <form id="add" style="display:flex;gap:8px">
+    <input id="channel" placeholder="Canal o enlace de Twitch" required>
+    <button class="primary">Vigilar canal</button>
+  </form>
+</header>
+<main>
+  <section>
+    <h2>Canales vigilados</h2>
+    <div id="sessions" class="sessions"></div>
+  </section>
+
+  <section class="panel">
+    <details>
+      <summary>Ajustes de detección y clip</summary>
+      <form id="settings" class="settings" style="margin-top:14px">
+        <label>Segundos antes del pico<input name="pre_secs" type="number" min="5" max="170"></label>
+        <label>Segundos después de calmarse el chat<input name="post_secs" type="number" min="0" max="60"></label>
+        <label>Duración máxima del clip (s)<input name="max_clip_secs" type="number" min="30" max="180"></label>
+        <label>Personas distintas mínimas en el pico<input name="min_users" type="number" min="1" max="200"></label>
+        <label>Sensibilidad (× sobre lo normal; más bajo = más clips)<input name="factor" type="number" step="0.1" min="1.2" max="20"></label>
+        <label>Mensajes mínimos en el pico<input name="min_msgs" type="number" min="1"></label>
+        <label>Ventana del pico (s)<input name="window_secs" type="number" min="3" max="60"></label>
+        <label>Espera entre clips (s)<input name="cooldown_secs" type="number" min="5" max="600"></label>
+        <label>Diseño del clip vertical<select name="layout"><option value="blur">Vídeo centrado con fondo difuminado</option><option value="split">Cámara arriba + juego abajo</option></select></label>
+        <label>Tarjeta gráfica <span id="gpu-found"></span><select name="gpu"><option value="true">Usar si está disponible (más rápido)</option><option value="false">No usar</option></select></label>
+        <label>Subtítulos automáticos<select name="subtitles"><option value="true">Activados</option><option value="false">Desactivados</option></select></label>
+        <label>Idioma del directo<select name="sub_language"><option value="es">Español</option><option value="en">Inglés</option><option value="auto">Detectar automáticamente</option></select></label>
+        <label>Calidad de la transcripción<select name="whisper_model"><option value="tiny">Muy rápida (peor)</option><option value="base">Rápida</option><option value="small">Normal</option><option value="medium">Alta (lenta)</option></select></label>
+        <label class="wide">Palabras/emotes que cuentan doble (separadas por comas)<input name="keywords"></label>
+        <div><button class="primary">Guardar ajustes</button> <span id="saved" style="color:var(--ok)"></span></div>
+      </form>
+    </details>
+  </section>
+
+  <section>
+    <h2>Clips</h2>
+    <div class="tabs">
+      <button data-tab="pendiente" class="on">Por revisar <span id="n-pendiente"></span></button>
+      <button data-tab="aprobado">Aprobados <span id="n-aprobado"></span></button>
+      <select id="sort" style="margin-left:auto" title="Orden de los clips">
+        <option value="date">Más recientes primero</option>
+        <option value="score">Mejor puntuación primero</option>
+      </select>
+    </div>
+    <div id="clips" class="clips"></div>
+  </section>
+</main>
+
+<div id="editor" hidden>
+  <div class="box">
+    <h3>Editar clip</h3>
+    <label class="field">Título (para cuando lo subas)<input id="ed-title" maxlength="100" placeholder="Sin título"></label>
+    <h4>Recorte</h4>
+    <video id="ed-video" controls preload="metadata"></video>
+    <div class="trim" style="margin-top:10px">
+      <label class="field">Inicio (s)<input id="ed-start" type="number" step="0.1" min="0"></label>
+      <button type="button" id="ed-set-start">Inicio = posición actual</button>
+      <label class="field">Fin (s)<input id="ed-end" type="number" step="0.1" min="0"></label>
+      <button type="button" id="ed-set-end">Fin = posición actual</button>
+      <button type="button" id="ed-preview">▶ Ver recorte</button>
+      <span id="ed-dur"></span>
+    </div>
+    <h4>Subtítulos <span style="text-transform:none;letter-spacing:0">— pulsa el tiempo para ir a ese momento; deja una línea vacía para quitarla</span></h4>
+    <div id="ed-lines"></div>
+    <div class="row">
+      <button class="primary" id="ed-save">Guardar y rehacer clip</button>
+      <button id="ed-cancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal" hidden>
+  <div class="box">
+    <h3>Marcar la cámara de <span id="cam-name"></span></h3>
+    <p id="cam-help">Arrastra con el ratón sobre la imagen para dibujar un recuadro alrededor de la cámara del streamer. Esa zona saldrá en la parte de arriba del clip.</p>
+    <div id="stage"><img id="snap" alt="" draggable="false"><div id="rect" hidden></div></div>
+    <div class="row">
+      <button class="primary" id="cam-save">Guardar</button>
+      <button class="bad" id="cam-clear">Quitar marca</button>
+      <button id="cam-cancel">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let tab = 'pendiente', clipSig = '', settingsLoaded = false, cams = {};
+
+// ---------- editor de clip: título, recorte y subtítulos ----------
+let ed = null, previewing = false;
+const edV = $('#ed-video');
+const fmt = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const trimVals = () => [Math.max(0, +$('#ed-start').value || 0), +$('#ed-end').value || 0];
+
+function updateTrim() {
+  const [s, e] = trimVals();
+  const d = e - s;
+  $('#ed-dur').textContent = d > 0 ? `Duración: ${d.toFixed(1)} s${d > 180 ? ' (más de 3 min: no vale como Short)' : ''}` : 'El fin debe ir después del inicio';
+  document.querySelectorAll('#ed-lines .subrow').forEach((row, i) => {
+    const l = ed.lines[i];
+    row.classList.toggle('out', l.end <= s || l.start >= e);   // fuera del recorte
+  });
+}
+async function openEditor(id) {
+  const d = await api('/api/clips/detail?id=' + encodeURIComponent(id));
+  if (d.error) return;
+  ed = {id, lines: d.lines, dur: 0};
+  $('#ed-title').value = d.clip_title;
+  $('#ed-lines').innerHTML = d.lines.length
+    ? d.lines.map((l, i) => `<div class="subrow"><button type="button" data-seek="${l.start}">${fmt(l.start)}</button><input data-line="${i}" value="${esc(l.text)}"></div>`).join('')
+    : '<div class="empty">Este clip no tiene subtítulos.</div>';
+  edV.onloadedmetadata = () => {
+    ed.dur = edV.duration;
+    $('#ed-start').value = (d.trim ? d.trim[0] : 0).toFixed(1);
+    $('#ed-end').value = (d.trim ? Math.min(d.trim[1], ed.dur) : ed.dur).toFixed(1);
+    updateTrim();
+  };
+  edV.src = d.original_url;
+  $('#editor').hidden = false;
+}
+function closeEditor() {
+  previewing = false;
+  edV.pause();
+  edV.removeAttribute('src');
+  edV.load();   // suelta el archivo para que se pueda mover o borrar
+  $('#editor').hidden = true;
+}
+$('#ed-start').oninput = $('#ed-end').oninput = updateTrim;
+$('#ed-set-start').onclick = () => { $('#ed-start').value = edV.currentTime.toFixed(1); updateTrim(); };
+$('#ed-set-end').onclick = () => { $('#ed-end').value = edV.currentTime.toFixed(1); updateTrim(); };
+$('#ed-preview').onclick = () => { edV.currentTime = trimVals()[0]; previewing = true; edV.play(); };
+edV.addEventListener('timeupdate', () => { if (previewing && edV.currentTime >= trimVals()[1]) { edV.pause(); previewing = false; } });
+$('#ed-lines').addEventListener('click', e => { if (e.target.dataset.seek) { previewing = false; edV.currentTime = +e.target.dataset.seek; edV.play(); } });
+$('#ed-cancel').onclick = closeEditor;
+$('#ed-save').onclick = async () => {
+  const [s, e] = trimVals();
+  if (e - s < 1) { $('#ed-dur').textContent = 'El recorte debe durar al menos 1 segundo'; return; }
+  const whole = s <= 0.05 && (!ed.dur || e >= ed.dur - 0.05);
+  const lines = ed.lines.map((l, i) => ({start: l.start, end: l.end, text: $(`#ed-lines [data-line="${i}"]`).value}));
+  const r = await api('/api/clips/edit', 'POST', {id: ed.id, title: $('#ed-title').value, trim: whole ? null : [s, e], lines});
+  if (r.ok) { closeEditor(); refresh(); } else $('#ed-dur').textContent = r.error || 'Error';
+};
+
+// ---------- marcar la cámara ----------
+let camChannel = null, camRect = null, dragStart = null;
+const HELP = $('#cam-help').textContent;
+
+function drawRect() {
+  const el = $('#rect');
+  el.hidden = !camRect;
+  if (camRect) Object.assign(el.style, {left: camRect[0] * 100 + '%', top: camRect[1] * 100 + '%', width: camRect[2] * 100 + '%', height: camRect[3] * 100 + '%'});
+}
+function openCam(channel) {
+  camChannel = channel;
+  camRect = cams[channel] ? [...cams[channel]] : null;
+  $('#cam-name').textContent = channel;
+  $('#cam-help').textContent = HELP;
+  const img = $('#snap');
+  img.onerror = () => { $('#cam-help').textContent = 'Todavía no hay imagen de este canal: hace falta que se esté grabando o que tenga algún clip guardado.'; };
+  img.src = `/api/snapshot/${channel}?t=${Date.now()}`;
+  drawRect();
+  $('#modal').hidden = false;
+}
+function stagePos(e) {
+  const r = $('#stage').getBoundingClientRect();
+  return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))];
+}
+$('#stage').addEventListener('pointerdown', e => { dragStart = stagePos(e); $('#stage').setPointerCapture(e.pointerId); });
+$('#stage').addEventListener('pointermove', e => {
+  if (!dragStart) return;
+  const [x, y] = stagePos(e);
+  camRect = [Math.min(x, dragStart[0]), Math.min(y, dragStart[1]), Math.abs(x - dragStart[0]), Math.abs(y - dragStart[1])];
+  drawRect();
+});
+$('#stage').addEventListener('pointerup', () => { dragStart = null; });
+$('#cam-cancel').onclick = () => { $('#modal').hidden = true; };
+$('#cam-clear').onclick = async () => { await api('/api/cams', 'POST', {channel: camChannel, rect: null}); $('#modal').hidden = true; refresh(); };
+$('#cam-save').onclick = async () => {
+  if (!camRect) { $('#cam-help').textContent = 'Primero dibuja el recuadro sobre la imagen.'; return; }
+  const r = await api('/api/cams', 'POST', {channel: camChannel, rect: camRect});
+  if (r.ok) { $('#modal').hidden = true; refresh(); } else $('#cam-help').textContent = r.error || 'Error';
+};
+
+async function api(url, method = 'GET', body) {
+  const r = await fetch(url, {method, headers: {'Content-Type': 'application/json'}, body: body ? JSON.stringify(body) : undefined});
+  const data = await r.json().catch(() => ({}));
+  $('#msg').textContent = r.ok ? '' : (data.error || 'Error');
+  return data;
+}
+
+function spark(s) {
+  const h = s.history, W = 300, H = 60;
+  const thr = s.baseline == null ? null : Math.max(s.baseline, 0.1) * s.factor;
+  const max = Math.max(1, ...h, thr || 0) * 1.1;
+  const y = v => (H - v / max * H).toFixed(1);
+  const pts = h.map((v, i) => `${(i / 119 * W).toFixed(1)},${y(v)}`).join(' ');
+  const line = thr == null ? '' : `<line x1="0" x2="${W}" y1="${y(thr)}" y2="${y(thr)}" stroke="#e5484d" stroke-dasharray="4 4" stroke-width="1"/>`;
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${line}<polyline points="${pts}" fill="none" stroke="#9147ff" stroke-width="2"/></svg>`;
+}
+
+function renderSessions(list) {
+  $('#sessions').innerHTML = list.length ? list.map(s => `
+    <div class="panel">
+      <div class="sess-head">
+        <strong>${esc(s.author)}</strong><span class="badge ${esc(s.status)}">${esc(s.status)}</span>
+        <span class="badge">${s.chat ? 'chat conectado' : 'chat sin conexión'}</span>
+        ${s.moment ? '<span class="badge grabando">🔥 momento en curso</span>' : ''}
+      </div>
+      <div class="title">${esc(s.title) || '—'}</div>
+      ${spark(s)}
+      <div class="stats">
+        <span><b>${s.rate}</b> msg/s ahora</span>
+        <span><b>${s.baseline ?? '…'}</b> msg/s normal</span>
+        <span><b>${s.buffered}s</b> en búfer</span>
+        <span><b>${s.pending}</b> clips en proceso</span>
+      </div>
+      <div class="events">${s.events.map(e => `<div><span>${esc(e.t)}</span>${esc(e.text)}</div>`).join('')}</div>
+      <div class="row">
+        <button data-clip="${esc(s.channel)}" ${s.status === 'grabando' ? '' : 'disabled'}>✂ Clip ahora</button>
+        <button data-cam="${esc(s.channel)}">📷 ${cams[s.channel] ? 'Cámara marcada' : 'Marcar cámara'}</button>
+        <button class="bad" data-stop="${esc(s.channel)}">Dejar de vigilar</button>
+      </div>
+    </div>`).join('') : '<div class="empty">Añade un canal arriba para empezar. Si no está en directo, la app espera a que empiece.</div>';
+}
+
+function renderClips(clips) {
+  for (const t of ['pendiente', 'aprobado'])
+    $('#n-' + t).textContent = '(' + clips.filter(c => c.status === t).length + ')';
+  const shown = clips.filter(c => c.status === tab);
+  const order = $('#sort').value;
+  if (order === 'score') shown.sort((a, b) => (b.score ?? -1) - (a.score ?? -1));   // llegan ya por fecha
+  const sig = tab + '|' + order + '|' + shown.map(c => [c.id, c.rev, c.busy, c.note, c.clip_title, !!cams[c.channel]].join('~')).join(',');
+  if (sig === clipSig) return;   // no redibujar: cortaría los vídeos en reproducción
+  clipSig = sig;
+  $('#clips').innerHTML = shown.length ? shown.map(c => `
+    <div class="panel clip">
+      <video controls preload="metadata" src="${esc(c.short_url || c.original_url)}"></video>
+      <div class="meta">${c.clip_title ? `<span class="ctitle">${esc(c.clip_title)}</span>` : ''}<b>${esc(c.author)} · ${esc((c.created || '').replace('T', ' '))}</b>${esc(c.title)}<br>${c.score != null ? `<span class="score" title="Veces por encima del ritmo normal del chat">🔥 ×${c.score}</span> ` : ''}${esc(c.reason)}</div>
+      <a href="${esc(c.original_url)}" target="_blank">Ver original horizontal</a>
+      <div class="row">
+        ${c.status === 'pendiente'
+          ? `<button class="ok" data-status="aprobado" data-id="${esc(c.id)}">Aprobar</button>`
+          : `<button data-status="pendiente" data-id="${esc(c.id)}">Volver a revisar</button>`}
+        <button class="bad" data-del="${esc(c.id)}">Descartar</button>
+      </div>
+      <div class="row">
+        <button data-edit="${esc(c.id)}" ${c.busy ? 'disabled' : ''}>✏ Editar</button>
+        <button data-redo="${esc(c.id)}" ${c.busy ? 'disabled' : ''}>${c.busy ? 'Editando…' : '↻ Rehacer edición'}</button>
+        <button data-cam="${esc(c.channel)}">📷 ${cams[c.channel] ? 'Cámara marcada' : 'Marcar cámara'}</button>
+      </div>
+      ${c.note ? `<div class="note">${esc(c.note)}</div>` : ''}
+    </div>`).join('') : `<div class="empty">No hay clips ${tab === 'pendiente' ? 'por revisar' : 'aprobados'}.</div>`;
+}
+
+async function refresh() {
+  try {
+    const st = await (await fetch('/api/state')).json();
+    cams = st.settings.cams || {};
+    $('#gpu-found').textContent = st.gpu_found ? '(NVIDIA detectada)' : '(no detectada)';
+    renderSessions(st.sessions);
+    renderClips(st.clips);
+    if (!settingsLoaded) {
+      for (const [k, v] of Object.entries(st.settings)) {
+        const el = $(`#settings [name=${k}]`);
+        if (el) el.value = Array.isArray(v) ? v.join(', ') : String(v);
+      }
+      settingsLoaded = true;
+    }
+  } catch { $('#msg').textContent = 'Sin conexión con la aplicación'; }
+}
+
+$('#add').onsubmit = async e => {
+  e.preventDefault();
+  const r = await api('/api/sessions', 'POST', {channel: $('#channel').value});
+  if (r.ok) $('#channel').value = '';
+  refresh();
+};
+$('#settings').onsubmit = async e => {
+  e.preventDefault();
+  const r = await api('/api/settings', 'POST', Object.fromEntries(new FormData(e.target)));
+  if (r.ok) { settingsLoaded = false; $('#saved').textContent = 'Guardado'; setTimeout(() => $('#saved').textContent = '', 2000); refresh(); }
+};
+document.addEventListener('click', async e => {
+  const d = e.target.dataset;
+  if (d.tab) {
+    tab = d.tab;
+    document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b === e.target));
+  } else if (d.clip) await api(`/api/sessions/${d.clip}/clip`, 'POST');
+  else if (d.stop) await api(`/api/sessions/${d.stop}`, 'DELETE');
+  else if (d.cam) { openCam(d.cam); return; }
+  else if (d.edit) { openEditor(d.edit); return; }
+  else if (d.redo) await api('/api/clips/reencode', 'POST', {id: d.redo});
+  else if (d.status) await api('/api/clips/status', 'POST', {id: d.id, status: d.status});
+  else if (d.del) { if (!confirm('¿Borrar este clip del disco?')) return; await api('/api/clips/delete', 'POST', {id: d.del}); }
+  else return;
+  refresh();
+});
+try { $('#sort').value = localStorage.getItem('sort') || 'date'; } catch {}
+$('#sort').onchange = () => { try { localStorage.setItem('sort', $('#sort').value); } catch {} refresh(); };
+refresh();
+setInterval(refresh, 1500);
+</script>
+</body>
+</html>

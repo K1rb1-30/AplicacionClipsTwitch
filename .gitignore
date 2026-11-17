@@ -1,0 +1,15 @@
+# Entorno de Python
+.venv/
+__pycache__/
+*.pyc
+.pip-tmp/
+
+# Datos generados por la aplicación
+clips/
+buffer/
+
+# Ajustes locales (canales y cámaras marcadas)
+config.json
+
+# Herramientas locales
+.claude/

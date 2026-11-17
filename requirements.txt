@@ -1,0 +1,4 @@
+flask
+streamlink
+imageio-ffmpeg
+faster-whisper

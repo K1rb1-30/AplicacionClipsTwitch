@@ -1,0 +1,5 @@
+# Opcional: solo para ordenadores con tarjeta gráfica NVIDIA.
+# Permite transcribir los subtítulos con la gráfica (unas 6 veces más rápido).
+# Ocupa unos 2 GB.
+nvidia-cublas-cu12
+nvidia-cudnn-cu12==9.*
