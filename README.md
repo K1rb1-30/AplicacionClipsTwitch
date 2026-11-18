@@ -62,7 +62,9 @@ $env:PORT = "9000"; .venv\Scripts\python.exe app.py
 ## Cómo se usa
 
 1. Escribe el nombre del canal (o pega el enlace de Twitch) y pulsa **Vigilar canal**. Puedes vigilar varios canales a la vez.
-2. Si el canal no está en directo, la aplicación espera y empieza a grabar sola cuando arranque (comprueba cada minuto).
+2. Si el canal no está en directo, la aplicación espera y empieza a grabar sola cuando arranque (comprueba cada minuto). Cuando el directo termina, vuelve a esperar al siguiente.
+   - La aplicación recuerda los canales vigilados: si la cierras o reinicias el ordenador, al volver a abrirla sigue vigilándolos. Para que deje de vigilar uno, pulsa **Dejar de vigilar**.
+   - Solo vigila mientras la aplicación está abierta y el ordenador no está suspendido. Para dejarla esperando muchas horas, desactiva la suspensión en la configuración de energía de Windows.
 3. Mientras graba, verás el ritmo del chat en una gráfica. La línea roja discontinua es el umbral a partir del cual se crea un clip.
 4. Cuando el chat supera el umbral, se guarda un clip. También puedes pulsar **✂ Clip ahora** para crear uno a mano.
 5. Los clips aparecen en **Por revisar**. Desde ahí puedes:

@@ -29,6 +29,7 @@ DEFAULTS = {
     "cooldown_secs": 60,   # espera mínima entre dos clips
     "quality": "best",
     "layout": "blur",          # "blur" = fondo difuminado, "split" = cámara arriba + juego abajo
+    "watched": [],             # canales vigilados; se reanudan al abrir la aplicación
     "cams": {},                # zona de la cámara por canal: [x, y, ancho, alto] en fracciones 0-1
     "gpu": True,               # usar la tarjeta gráfica NVIDIA si está disponible
     "subtitles": True,       # incrustar subtítulos automáticos
@@ -49,6 +50,8 @@ if CONFIG.exists():
         settings.update(json.loads(CONFIG.read_text(encoding="utf-8")))
     except ValueError:
         pass
+settings["watched"] = list(settings.get("watched") or [])
+settings["cams"] = dict(settings.get("cams") or {})
 
 sessions = {}
 app = Flask(__name__, static_folder=str(ROOT / "static"), static_url_path="/static")
@@ -82,8 +85,10 @@ def start_session():
     old = sessions.get(channel)
     if old and old.is_alive():
         return jsonify(error="Ese canal ya se está vigilando"), 400
-    sessions[channel] = Session(channel, settings)
-    sessions[channel].start()
+    watch(channel)
+    if channel not in settings["watched"]:
+        settings["watched"].append(channel)
+        save_config()
     return jsonify(ok=True)
 
 
@@ -92,7 +97,15 @@ def stop_session(channel):
     s = sessions.pop(channel, None)
     if s:
         s.stop()
+    if channel in settings["watched"]:
+        settings["watched"].remove(channel)
+        save_config()
     return jsonify(ok=True)
+
+
+def watch(channel):
+    sessions[channel] = Session(channel, settings)
+    sessions[channel].start()
 
 
 @app.post("/api/sessions/<channel>/clip")
@@ -219,6 +232,11 @@ def media(rel):
 if __name__ == "__main__":
     CLIPS_DIR.mkdir(exist_ok=True)
     migrate_layout()  # adapta clips guardados con la estructura de carpetas antigua
+    for ch in list(settings["watched"]):  # reanuda los canales vigilados la última vez
+        if parse_channel(ch) == ch and ch not in sessions:
+            watch(ch)
+    if settings["watched"]:
+        print("Vigilando de nuevo:", ", ".join(settings["watched"]))
     if not os.environ.get("NO_BROWSER"):
         threading.Timer(1.0, lambda: webbrowser.open(f"http://127.0.0.1:{PORT}")).start()
     print(f"Interfaz en http://127.0.0.1:{PORT}  (Ctrl+C para salir)")
