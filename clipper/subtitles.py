@@ -19,6 +19,7 @@ WrapStyle: 2
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: Default,Arial,92,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,6,2,2,40,40,__MARGIN__,1
+Style: Title,Arial,74,&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000000,-1,0,0,0,100,100,0,0,1,5,4,__TALIGN__,60,60,__TMARGIN__,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -145,9 +146,23 @@ def read_lines(ass_path):
     return lines
 
 
-def write_lines(ass_path, lines, margin_v=DEFAULT_MARGIN):
-    """Escribe un .ass con las líneas dadas, dibujadas a `margin_v` píxeles desde abajo."""
-    out = [ASS_HEADER.replace("__MARGIN__", str(int(margin_v)))]
+def title_text(text):
+    """Texto del título para el .ass: cada salto de línea escrito se respeta (\\N)."""
+    rows = [clean_text(r) for r in str(text or "").splitlines()]
+    return "\\N".join(r for r in rows if r)
+
+
+def write_lines(ass_path, lines, margin_v=DEFAULT_MARGIN, title=None, title_pos=(2, 1300)):
+    """Escribe un .ass con las líneas dadas, dibujadas a `margin_v` píxeles desde abajo.
+
+    `title` es un texto fijo que se ve durante todo el clip; `title_pos` = (alineación
+    ASS, margen vertical): 2 = apoyado por abajo a ese margen, 8 = pegado arriba.
+    """
+    out = [ASS_HEADER.replace("__MARGIN__", str(int(margin_v)))
+           .replace("__TALIGN__", str(title_pos[0])).replace("__TMARGIN__", str(title_pos[1]))]
+    title = title_text(title)
+    if title:  # {\q0}: este texto sí se parte en varias líneas si no cabe a lo ancho
+        out.append(f"Dialogue: 1,0:00:00.00,9:59:59.00,Title,,0,0,0,,{{\\q0}}{title}\n")
     for ln in lines:
         text = clean_text(str(ln["text"]))
         if text:

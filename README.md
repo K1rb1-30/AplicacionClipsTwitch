@@ -133,11 +133,12 @@ La imagen sale del directo si se está grabando o, si no, del último clip guard
 
 En la parte de abajo se usa el centro de la imagen, así que los bordes izquierdo y derecho del directo quedan fuera.
 
-## Editar un clip: título, recorte y subtítulos
+## Editar un clip: título, texto, recorte y subtítulos
 
 El botón **✏ Editar** de cada clip abre un editor con el vídeo original:
 
 - **Título**: nombre del clip, visible en su tarjeta. Se usará al subirlo.
+- **Texto encima del vídeo** (opcional): una frase fija que se ve durante todo el clip, en blanco con contorno, como en muchos Shorts. Con el fondo difuminado va en la franja de arriba, justo encima del vídeo; con el diseño dividido va arriba del todo, sobre la cámara. Si es largo se parte solo en varias líneas, y con Intro puedes forzar un salto de línea. **Usar el título como texto** copia el título. Déjalo vacío para quitarlo. Los emojis salen en blanco y negro, no en color.
 - **Recorte**: reproduce el vídeo hasta donde quieras que empiece y pulsa **Inicio = posición actual**; haz lo mismo con el fin. También puedes escribir los segundos a mano. **▶ Ver recorte** reproduce solo el tramo elegido.
 - **Subtítulos**: cada línea se puede corregir. Pulsa el tiempo de una línea para saltar a ese momento del vídeo; deja la línea vacía para quitarla. Las líneas atenuadas quedan fuera del recorte.
 

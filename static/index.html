@@ -13,7 +13,7 @@
   h1 { font-size:18px; margin:0; margin-right:auto; }
   h2 { font-size:15px; margin:0 0 12px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
   main { padding:24px; display:grid; gap:24px; max-width:1300px; margin:auto; }
-  input, button, select { font:inherit; border-radius:8px; border:1px solid var(--line); padding:8px 12px; background:var(--panel); color:var(--text); }
+  input, button, select, textarea { font:inherit; border-radius:8px; border:1px solid var(--line); padding:8px 12px; background:var(--panel); color:var(--text); }
   button { cursor:pointer; }
   button:hover { border-color:var(--accent); }
   button.primary { background:var(--accent); border-color:var(--accent); font-weight:600; }
@@ -130,6 +130,10 @@
   <div class="box">
     <h3>Editar clip</h3>
     <label class="field">Título (para cuando lo subas)<input id="ed-title" maxlength="100" placeholder="Sin título"></label>
+    <label class="field" style="margin-top:10px">Texto encima del vídeo (opcional; Intro = nueva línea)
+      <textarea id="ed-overlay" rows="2" maxlength="150" placeholder="Ej.: Casi la lía en la final 😭" style="resize:vertical"></textarea>
+    </label>
+    <div class="row" style="margin-top:6px"><button type="button" id="ed-copy-title">Usar el título como texto</button></div>
     <h4>Recorte</h4>
     <video id="ed-video" controls preload="metadata"></video>
     <div class="trim" style="margin-top:10px">
@@ -187,6 +191,7 @@ async function openEditor(id) {
   if (d.error) return;
   ed = {id, lines: d.lines, dur: 0};
   $('#ed-title').value = d.clip_title;
+  $('#ed-overlay').value = d.overlay_text;
   $('#ed-lines').innerHTML = d.lines.length
     ? d.lines.map((l, i) => `<div class="subrow"><button type="button" data-seek="${l.start}">${fmt(l.start)}</button><input data-line="${i}" value="${esc(l.text)}"></div>`).join('')
     : '<div class="empty">Este clip no tiene subtítulos.</div>';
@@ -213,12 +218,13 @@ $('#ed-preview').onclick = () => { edV.currentTime = trimVals()[0]; previewing =
 edV.addEventListener('timeupdate', () => { if (previewing && edV.currentTime >= trimVals()[1]) { edV.pause(); previewing = false; } });
 $('#ed-lines').addEventListener('click', e => { if (e.target.dataset.seek) { previewing = false; edV.currentTime = +e.target.dataset.seek; edV.play(); } });
 $('#ed-cancel').onclick = closeEditor;
+$('#ed-copy-title').onclick = () => { $('#ed-overlay').value = $('#ed-title').value; };
 $('#ed-save').onclick = async () => {
   const [s, e] = trimVals();
   if (e - s < 1) { $('#ed-dur').textContent = 'El recorte debe durar al menos 1 segundo'; return; }
   const whole = s <= 0.05 && (!ed.dur || e >= ed.dur - 0.05);
   const lines = ed.lines.map((l, i) => ({start: l.start, end: l.end, text: $(`#ed-lines [data-line="${i}"]`).value}));
-  const r = await api('/api/clips/edit', 'POST', {id: ed.id, title: $('#ed-title').value, trim: whole ? null : [s, e], lines});
+  const r = await api('/api/clips/edit', 'POST', {id: ed.id, title: $('#ed-title').value, overlay_text: $('#ed-overlay').value, trim: whole ? null : [s, e], lines});
   if (r.ok) { closeEditor(); refresh(); } else $('#ed-dur').textContent = r.error || 'Error';
 };
 

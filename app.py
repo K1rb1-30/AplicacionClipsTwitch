@@ -199,7 +199,7 @@ def clip_detail_route():
 def clip_edit():
     data = request.json or {}
     err = edit_clip(data.get("id", ""), data.get("title"), data.get("trim"),
-                    data.get("lines"), settings)
+                    data.get("lines"), settings, data.get("overlay_text"))
     return (jsonify(error=err), 400) if err else (jsonify(ok=True), 200)
 
 

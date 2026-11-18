@@ -214,14 +214,19 @@ class Session(threading.Thread):
 # ---------- edición del clip vertical ----------
 SUBS_MARGIN_BLUR = 470    # subtítulos bajo el vídeo centrado
 SUBS_MARGIN_SPLIT = 1070  # subtítulos sobre la unión entre cámara y juego
+# Texto de arriba: con fondo difuminado, apoyado justo encima del vídeo (que empieza en
+# y=656, así que su borde inferior queda en y=620); en el dividido, arriba del todo.
+TITLE_POS_BLUR = (2, 1300)
+TITLE_POS_SPLIT = (8, 50)
 
 
-def render_short(raw, short, channel, settings, log, trim=None):
+def render_short(raw, short, channel, settings, log, trim=None, title=None):
     """Genera el clip vertical según los ajustes. Devuelve (ok, nombre del .ass o None).
 
     El .ass que hay junto al clip guarda los subtítulos referidos al original completo.
     Si ya existe se reutiliza (así se puede corregir el texto y rehacer la edición sin
     volver a transcribir). `trim` = [inicio, fin] en segundos recorta el clip.
+    `title` es un texto que se ve encima del vídeo durante todo el clip.
     """
     with ENCODE_LOCK:
         cam = None
@@ -229,11 +234,11 @@ def render_short(raw, short, channel, settings, log, trim=None):
             cam = settings.get("cams", {}).get(channel)
             if not cam:
                 log(f"{short.name}: cámara sin marcar para {channel}, se usa fondo difuminado")
+        from .subtitles import make_subtitles, read_lines, title_text, write_lines
         ass = short.with_suffix(".ass")
-        render_ass = None  # copia temporal con el margen y los tiempos de esta edición
+        lines = []
         if settings.get("subtitles"):
             try:
-                from .subtitles import make_subtitles, read_lines, write_lines
                 if not ass.exists() and not make_subtitles(
                         raw, ass, settings["sub_language"], settings["whisper_model"],
                         settings.get("gpu", True)):
@@ -244,12 +249,14 @@ def render_short(raw, short, channel, settings, log, trim=None):
                     lines = [{"start": max(ln["start"] - t0, 0), "end": min(ln["end"], t1) - t0,
                               "text": ln["text"]} for ln in lines]
                     lines = [ln for ln in lines if ln["end"] - ln["start"] > 0.05]
-                if lines:
-                    render_ass = short.with_name(short.stem + ".render.ass")
-                    write_lines(render_ass, lines, SUBS_MARGIN_SPLIT if cam else SUBS_MARGIN_BLUR)
             except Exception as e:  # el clip sale igualmente, sin subtítulos
-                render_ass = None
+                lines = []
                 log(f"Error en subtítulos de {short.name}: {str(e)[-120:]}")
+        render_ass = None  # copia temporal con el margen, los tiempos y el texto de arriba
+        if lines or title_text(title):
+            render_ass = short.with_name(short.stem + ".render.ass")
+            write_lines(render_ass, lines, SUBS_MARGIN_SPLIT if cam else SUBS_MARGIN_BLUR,
+                        title, TITLE_POS_SPLIT if cam else TITLE_POS_BLUR)
         ass_name = ass.name if ass.exists() else None
         tmp = short.with_name(short.stem + ".tmp.mp4")
         ok, err = encode_vertical(raw, tmp, render_ass.name if render_ass else None, cam, trim,
@@ -285,7 +292,7 @@ def reencode_clip(clip_id, settings):
             notes = []
             short = path.with_suffix(".mp4")
             ok, ass_name = render_short(raw, short, meta.get("channel", ""), settings,
-                                        notes.append, meta.get("trim"))
+                                        notes.append, meta.get("trim"), meta.get("overlay_text"))
             if not path.is_file():  # se descartó mientras tanto
                 return
             cur = json.loads(path.read_text(encoding="utf-8"))
@@ -316,14 +323,15 @@ def clip_detail(clip_id):
     folder = path.parent.relative_to(CLIPS_DIR.resolve()).as_posix()
     return {
         "clip_title": meta.get("clip_title") or "",  # "title" es el título del directo
+        "overlay_text": meta.get("overlay_text") or "",
         "trim": meta.get("trim"),
         "lines": lines,
         "original_url": f"/media/{folder}/{meta['original']}",
     }
 
 
-def edit_clip(clip_id, title, trim, lines, settings):
-    """Guarda título, recorte y subtítulos corregidos y rehace el clip vertical.
+def edit_clip(clip_id, title, trim, lines, settings, overlay_text=None):
+    """Guarda título, texto de arriba, recorte y subtítulos corregidos y rehace el clip.
 
     Devuelve None si salió bien o un mensaje de error.
     """
@@ -352,6 +360,9 @@ def edit_clip(clip_id, title, trim, lines, settings):
             write_lines(ass, lines)
     meta = json.loads(path.read_text(encoding="utf-8"))
     meta["clip_title"] = " ".join(str(title or "").split())[:100]
+    if overlay_text is not None:  # se respetan los saltos de línea; vacío = sin texto
+        rows = [" ".join(r.split()) for r in str(overlay_text).splitlines()]
+        meta["overlay_text"] = "\n".join(r for r in rows if r)[:150]
     meta["trim"] = trim
     path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
     if not reencode_clip(clip_id, settings):
